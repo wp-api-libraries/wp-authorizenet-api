@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <phpdoc>
-    <title>WP Cloudflare API</title>
+    <title>WP Authorize.net API</title>
     <parser>
         <target>docs</target>
         <encoding>utf8</encoding>
