@@ -38,14 +38,14 @@ if ( ! class_exists( 'WPAuthorizeNetAPI' ) ) {
 		 *
 		 * @var string
 		 */
-		static protected $api_key;
+		static protected $api_login_id;
 
 		/**
 		 * Auth Email
 		 *
 		 * @var string
 		 */
-		static protected $auth_email;
+		static protected $transaction_key;
 
 		/**
 		 * User Service Key
@@ -67,48 +67,47 @@ if ( ! class_exists( 'WPAuthorizeNetAPI' ) ) {
 		protected $xsd_uri = 'https://api.authorize.net/xml/v1/schema/AnetApiSchema.xsd';
 
 		/**
-		 * Route being called.
+		 * Action being called.
 		 *
 		 * @var string
 		 */
-		protected $route = '';
+		protected $action;
 
+		protected $use_sandbox;
 
 		/**
 		 * Class constructor.
 		 *
-		 * @param string $api_key               Cloudflare API Key.
-		 * @param string $auth_email            Email associated to the account.
-		 * @param string $user_service_key      User Service key.
+		 * @param string $api_login_id     API Login ID.
+		 * @param string $transaction_key  Transaction Key
 		 */
-		public function __construct( $api_key, $auth_email, $user_service_key = '' ) {
-			static::$api_key = $api_key;
-			static::$auth_email = $auth_email;
-			static::$user_service_key = $user_service_key;
+		public function __construct( $api_login_id, $transaction_key, bool $use_sandbox = false ) {
+			static::$api_login_id = $api_login_id;
+			static::$transaction_key = $transaction_key;
+			static::$use_sandbox = $use_sandbox;
 		}
 
 		/**
 		 * Prepares API request.
 		 *
-		 * @param  string $route   API route to make the call to.
+		 * @param  string $action   API action to make the call to.
 		 * @param  array  $args    Arguments to pass into the API call.
 		 * @param  array  $method  HTTP Method to use for request.
 		 * @return self            Returns an instance of itself so it can be chained to the fetch method.
 		 */
-		protected function build_request( $route, $args = array(), $method = 'GET' ) {
+		protected function build_request( $action, $args = array() ) {
 			// Start building query.
-			$this->set_headers();
-			$this->args['method'] = $method;
-			$this->route = $route;
+			$this->args['headers'] = array(
+					'Content-Type' => 'application/json',
+					'X-Auth-Email' => static::$transaction_key,
+					'X-Auth-Key' => static::$api_login_id,
+			);
 
-			// Generate query string for GET requests.
-			if ( 'GET' === $method ) {
-				$this->route = add_query_arg( array_filter( $args ), $route );
-			} elseif ( 'application/json' === $this->args['headers']['Content-Type'] ) {
-				$this->args['body'] = wp_json_encode( $args );
-			} else {
-				$this->args['body'] = $args;
-			}
+			$this->args['method'] = 'POST';
+
+			$this->action = $action;
+
+			$this->args['body'] = wp_json_encode( $args );
 
 			return $this;
 		}
@@ -122,7 +121,7 @@ if ( ! class_exists( 'WPAuthorizeNetAPI' ) ) {
 		 */
 		protected function fetch() {
 			// Make the request.
-			$response = wp_remote_request( $this->base_uri . $this->route, $this->args );
+			$response = wp_remote_request( $this->base_uri, $this->args );
 
 			// Retrieve Status code & body.
 			$code = wp_remote_retrieve_response_code( $response );
@@ -137,25 +136,11 @@ if ( ! class_exists( 'WPAuthorizeNetAPI' ) ) {
 			return $body;
 		}
 
-
-		/**
-		 * Set request headers.
-		 */
-		protected function set_headers() {
-			// Set request headers.
-			$this->args['headers'] = array(
-					'Content-Type' => 'application/json',
-					'X-Auth-Email' => static::$auth_email,
-					'X-Auth-Key' => static::$api_key,
-			);
-		}
-
 		/**
 		 * Clear query data.
 		 */
 		protected function clear() {
 			$this->args = array();
-			$this->query_args = array();
 		}
 
 		/**
@@ -180,7 +165,7 @@ if ( ! class_exists( 'WPAuthorizeNetAPI' ) ) {
 		 * @return array  API response.
 		 */
 		public function get_customer_profile_ids() {
-			return $this->build_request( 'user' )->fetch();
+			return $this->build_request( 'getCustomerProfileIdsRequest' )->fetch();
 		}
 
 	} // End Class
